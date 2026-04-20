@@ -1,0 +1,66 @@
+@inherits LayoutComponentBase
+
+<div class="tp-layout">
+    <nav class="tp-sidebar">
+        <div class="tp-logo">
+            <div class="tp-logo-icon">🎟</div>
+            <div>
+                <div class="tp-logo-text">TicketPrime</div>
+                <div class="tp-logo-sub">Engine de Ingressos</div>
+            </div>
+        </div>
+
+        <div class="tp-nav-section">
+            <div class="tp-nav-label">Principal</div>
+            <ul class="tp-nav">
+                <li>
+                    <NavLink href="" Match="NavLinkMatch.All" class="tp-nav-link">
+                        <span class="tp-nav-icon">🏠</span> Início
+                    </NavLink>
+                </li>
+                <li>
+                    <NavLink href="eventos" class="tp-nav-link">
+                        <span class="tp-nav-icon">📅</span> Eventos
+                    </NavLink>
+                </li>
+                <li>
+                    <NavLink href="usuarios" class="tp-nav-link">
+                        <span class="tp-nav-icon">👤</span> Usuários
+                    </NavLink>
+                </li>
+            </ul>
+
+            <div class="tp-nav-label" style="margin-top:20px;">Operações</div>
+            <ul class="tp-nav">
+                <li>
+                    <NavLink href="cupons" class="tp-nav-link">
+                        <span class="tp-nav-icon">🏷</span> Cupons
+                    </NavLink>
+                </li>
+                <li>
+                    <NavLink href="reservas" class="tp-nav-link">
+                        <span class="tp-nav-icon">🎫</span> Reservas
+                    </NavLink>
+                </li>
+                <li>
+                    <NavLink href="consultar-reservas" class="tp-nav-link">
+                        <span class="tp-nav-icon">🔍</span> Consultar
+                    </NavLink>
+                </li>
+            </ul>
+        </div>
+
+        <div class="tp-sidebar-footer">
+            <div class="tp-sidebar-badge">
+                <div class="tp-sidebar-dot"></div>
+                <div class="tp-sidebar-status">API <strong>Online</strong> · :5246</div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="tp-main">
+        <div class="tp-content">
+            @Body
+        </div>
+    </main>
+</div>

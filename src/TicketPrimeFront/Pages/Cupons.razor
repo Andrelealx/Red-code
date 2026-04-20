@@ -1,0 +1,179 @@
+@page "/cupons"
+@inject HttpClient Http
+<PageTitle>Cupons — TicketPrime</PageTitle>
+
+<div class="tp-page-header">
+    <h1 class="tp-page-title tp-page-title-icon">
+        <span>🏷</span> Cupons
+    </h1>
+    <p class="tp-page-desc">Gerencie cupons de desconto com regra de valor mínimo de aplicação.</p>
+</div>
+
+<div class="tp-two-col">
+
+    <div class="tp-card tp-card-accent">
+        <div class="tp-card-title">
+            <div class="tp-card-title-icon">✏️</div>
+            Cadastrar Cupom
+        </div>
+
+        <div class="tp-form">
+            <div class="tp-field">
+                <label class="tp-label">Código do cupom</label>
+                <input class="tp-input"
+                       style="font-family: 'SF Mono', 'Fira Code', monospace; letter-spacing: 0.08em; text-transform: uppercase;"
+                       @bind="novoCupom.Codigo"
+                       placeholder="Ex: VERAO20" />
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div class="tp-field">
+                    <label class="tp-label">Desconto (%)</label>
+                    <input class="tp-input" type="number" step="0.01" min="1" max="100"
+                           @bind="novoCupom.PorcentagemDesconto" placeholder="Ex: 20" />
+                </div>
+                <div class="tp-field">
+                    <label class="tp-label">Valor mínimo (R$)</label>
+                    <input class="tp-input" type="number" step="0.01" min="0"
+                           @bind="novoCupom.ValorMinimoRegra" placeholder="Ex: 100.00" />
+                </div>
+            </div>
+
+            @if (novoCupom.PorcentagemDesconto > 0 && novoCupom.ValorMinimoRegra > 0)
+            {
+                <div class="tp-preview">
+                    <span>💡</span>
+                    <span>
+                        Para ingressos a partir de <strong>R$ @novoCupom.ValorMinimoRegra.ToString("F2")</strong>,
+                        aplica <strong>@novoCupom.PorcentagemDesconto%</strong> de desconto.
+                    </span>
+                </div>
+            }
+
+            <button class="tp-btn tp-btn-primary" @onclick="CadastrarCupom" disabled="@carregando" style="margin-top:4px;">
+                @if (carregando)
+                {
+                    <span class="tp-btn-spinner"></span>
+                    <span>Salvando...</span>
+                }
+                else
+                {
+                    <span>Cadastrar Cupom</span>
+                }
+            </button>
+
+            <Alerta Mensagem="@mensagem" Tipo="@tipoMensagem" />
+        </div>
+    </div>
+
+    <div class="tp-card">
+        <div class="tp-card-title">
+            <div class="tp-card-title-icon">🔍</div>
+            Consultar Cupom
+        </div>
+
+        <div class="tp-form">
+            <div class="tp-field">
+                <label class="tp-label">Código do cupom</label>
+                <div class="tp-input-row">
+                    <input class="tp-input"
+                           style="font-family: 'SF Mono', 'Fira Code', monospace; letter-spacing: 0.08em; text-transform: uppercase;"
+                           @bind="codigoBusca"
+                           placeholder="Ex: VERAO20" />
+                    <button class="tp-btn tp-btn-secondary" @onclick="ConsultarCupom" disabled="@carregandoBusca">
+                        @if (carregandoBusca)
+                        {
+                            <span class="tp-btn-spinner" style="border-color:rgba(122,92,10,0.2);border-top-color:var(--gold-deeper);"></span>
+                        }
+                        else
+                        {
+                            <span>Buscar</span>
+                        }
+                    </button>
+                </div>
+            </div>
+
+            @if (cupomEncontrado is not null)
+            {
+                <div class="tp-result" style="margin-top:4px;">
+                    <div class="tp-result-header">Cupom encontrado</div>
+                    <div class="tp-result-row">
+                        <span>Código</span>
+                        <strong class="tp-code">@cupomEncontrado.Codigo</strong>
+                    </div>
+                    <div class="tp-result-row">
+                        <span>Desconto</span>
+                        <strong style="color:var(--success);">@cupomEncontrado.PorcentagemDesconto.ToString("F2")% OFF</strong>
+                    </div>
+                    <div class="tp-result-row">
+                        <span>Aplicável a partir de</span>
+                        <strong>R$ @cupomEncontrado.ValorMinimoRegra.ToString("F2")</strong>
+                    </div>
+                </div>
+            }
+
+            <Alerta Mensagem="@mensagemBusca" Tipo="@tipoBusca" />
+        </div>
+
+        <div class="tp-divider" style="margin-top:20px;"></div>
+
+        <ul class="tp-info-list">
+            <li><span>ℹ️</span><span>O desconto só é aplicado se o preço do evento for maior ou igual ao valor mínimo.</span></li>
+            <li><span>ℹ️</span><span>Códigos de cupom são únicos — o sistema rejeita duplicatas.</span></li>
+            <li><span>ℹ️</span><span>Porcentagem deve ser entre <code>1%</code> e <code>100%</code>.</span></li>
+        </ul>
+    </div>
+
+</div>
+
+@code {
+    private Cupom novoCupom = new();
+    private Cupom? cupomEncontrado;
+    private string codigoBusca = string.Empty;
+    private string mensagem = string.Empty;
+    private string tipoMensagem = "erro";
+    private string mensagemBusca = string.Empty;
+    private string tipoBusca = "erro";
+    private bool carregando = false;
+    private bool carregandoBusca = false;
+
+    private async Task CadastrarCupom()
+    {
+        mensagem = string.Empty;
+        carregando = true;
+
+        var payload = new { Codigo = novoCupom.Codigo.Trim().ToUpper(), novoCupom.PorcentagemDesconto, novoCupom.ValorMinimoRegra };
+        var resp = await Http.PostAsJsonAsync("/api/cupons", payload);
+        if (resp.IsSuccessStatusCode)
+        {
+            mensagem = $"Cupom \"{novoCupom.Codigo.ToUpper()}\" cadastrado com sucesso!";
+            tipoMensagem = "sucesso";
+            novoCupom = new();
+        }
+        else
+        {
+            mensagem = await resp.Content.ReadAsStringAsync();
+            tipoMensagem = "erro";
+        }
+
+        carregando = false;
+    }
+
+    private async Task ConsultarCupom()
+    {
+        mensagemBusca = string.Empty;
+        cupomEncontrado = null;
+        if (string.IsNullOrWhiteSpace(codigoBusca)) return;
+
+        carregandoBusca = true;
+        var resp = await Http.GetAsync($"/api/cupons/{codigoBusca.Trim().ToUpper()}");
+        if (resp.IsSuccessStatusCode)
+            cupomEncontrado = await resp.Content.ReadFromJsonAsync<Cupom>();
+        else
+        {
+            mensagemBusca = "Cupom não encontrado. Verifique o código e tente novamente.";
+            tipoBusca = "erro";
+        }
+        carregandoBusca = false;
+    }
+}

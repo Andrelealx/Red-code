@@ -1,0 +1,246 @@
+@page "/reservas"
+@inject HttpClient Http
+<PageTitle>Reservas — TicketPrime</PageTitle>
+
+<div class="tp-page-header">
+    <h1 class="tp-page-title tp-page-title-icon">
+        <span>🎫</span> Reservas
+    </h1>
+    <p class="tp-page-desc">Realize a compra de ingressos com validação automática de regras de negócio.</p>
+</div>
+
+<div class="tp-two-col">
+
+    <div class="tp-card tp-card-accent">
+        <div class="tp-card-title">
+            <div class="tp-card-title-icon">🎟</div>
+            Realizar Reserva
+        </div>
+
+        <div class="tp-form">
+
+            <div class="tp-field">
+                <label class="tp-label">CPF do comprador</label>
+                <input class="tp-input"
+                       value="@req.UsuarioCpf"
+                       @oninput="FiltrarCpf"
+                       placeholder="Ex: 12345678901"
+                       maxlength="11"
+                       inputmode="numeric" />
+            </div>
+
+            <div class="tp-field">
+                <label class="tp-label">Evento</label>
+                @if (carregandoEventos)
+                {
+                    <div class="tp-loading" style="padding: 12px 0; justify-content: flex-start;">
+                        <div class="tp-loading-spinner"></div>
+                        Carregando eventos...
+                    </div>
+                }
+                else if (!eventos.Any())
+                {
+                    <div class="tp-alert tp-alert-info">
+                        <span class="tp-alert-icon">ℹ️</span>
+                        <span>Nenhum evento disponível. <a href="eventos" style="color:var(--info); font-weight:700;">Cadastre um evento</a> primeiro.</span>
+                    </div>
+                }
+                else
+                {
+                    <select class="tp-input" @bind="req.EventoId">
+                        <option value="0">— Selecione um evento —</option>
+                        @foreach (var ev in eventos)
+                        {
+                            <option value="@ev.Id">
+                                @ev.Nome — R$ @ev.PrecoPadrao.ToString("F2") · @ev.DataEvento.ToString("dd/MM/yyyy")
+                            </option>
+                        }
+                    </select>
+                }
+            </div>
+
+            <div class="tp-field">
+                <label class="tp-label">Cupom de desconto <span style="font-weight:400; text-transform:none; letter-spacing:0;">(opcional)</span></label>
+                <input class="tp-input"
+                       style="font-family: 'SF Mono', 'Fira Code', monospace; letter-spacing: 0.06em; text-transform: uppercase;"
+                       @bind="req.CupomUtilizado"
+                       placeholder="Deixe vazio se não tiver cupom" />
+            </div>
+
+            @if (req.EventoId > 0)
+            {
+                var ev = eventos.FirstOrDefault(e => e.Id == req.EventoId);
+                if (ev != null)
+                {
+                    <div class="tp-preview">
+                        <div style="display:flex; flex-direction:column; gap:4px; width:100%;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span>💰 Preço do evento</span>
+                                <strong>R$ @ev.PrecoPadrao.ToString("F2")</strong>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span>👥 Capacidade</span>
+                                <strong>@ev.CapacidadeTotal vagas</strong>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(req.CupomUtilizado))
+                            {
+                                <div style="display:flex; justify-content:space-between; align-items:center; color:var(--success);">
+                                    <span>🏷 Cupom</span>
+                                    <strong>@req.CupomUtilizado.ToUpper() · desconto aplicado no servidor</strong>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+
+            <button class="tp-btn tp-btn-primary" @onclick="RealizarReserva" disabled="@carregando" style="margin-top:4px;">
+                @if (carregando)
+                {
+                    <span class="tp-btn-spinner"></span>
+                    <span>Processando reserva...</span>
+                }
+                else
+                {
+                    <span>Confirmar Reserva</span>
+                }
+            </button>
+
+            <Alerta Mensagem="@mensagem" Tipo="@tipoMensagem" />
+
+            @if (reservaConfirmada is not null)
+            {
+                <div class="tp-result tp-result-success">
+                    <div class="tp-result-header">
+                        <span class="tp-success-icon">✅</span> Reserva confirmada com sucesso!
+                    </div>
+                    <div class="tp-result-row">
+                        <span>Valor pago</span>
+                        <strong class="tp-price">R$ @reservaConfirmada.ValorPago.ToString("F2")</strong>
+                    </div>
+                    <div class="tp-result-row">
+                        <span>Status</span>
+                        <span class="tp-badge tp-badge-success">Confirmada</span>
+                    </div>
+                    <div class="tp-result-row">
+                        <span>Mensagem</span>
+                        <strong>@reservaConfirmada.Mensagem</strong>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="tp-card">
+        <div class="tp-card-title">
+            <div class="tp-card-title-icon">⚙️</div>
+            Regras de Negócio
+        </div>
+        <ul class="tp-info-list">
+            <li>
+                <span>🔒</span>
+                <span><strong>R1 — Integridade:</strong> o CPF deve pertencer a um usuário cadastrado.</span>
+            </li>
+            <li>
+                <span>🚫</span>
+                <span><strong>R2 — Anti-cambista:</strong> máximo de 2 ingressos por CPF no mesmo evento.</span>
+            </li>
+            <li>
+                <span>🚫</span>
+                <span><strong>R3 — Overbooking:</strong> reservas encerram ao atingir a capacidade total.</span>
+            </li>
+            <li>
+                <span>✅</span>
+                <span><strong>R4 — Cupons:</strong> desconto aplicado somente se o preço for ≥ ao valor mínimo do cupom.</span>
+            </li>
+            <li>
+                <span>✅</span>
+                <span>Reservas sem cupom usam o <strong>preço cheio</strong> do evento.</span>
+            </li>
+            <li>
+                <span>✅</span>
+                <span>O valor final pago <strong>nunca pode ser negativo</strong>.</span>
+            </li>
+        </ul>
+
+        <div class="tp-tip" style="margin-top:20px;">
+            <span>💡</span>
+            <span>Consulte suas reservas na seção <a href="consultar-reservas" style="color:var(--gold-deeper); font-weight:700;">Consultar</a> usando seu CPF.</span>
+        </div>
+    </div>
+
+</div>
+
+@code {
+    private ReservaReq req = new();
+    private List<Evento> eventos = new();
+    private bool carregandoEventos = false;
+    private bool carregando = false;
+    private string mensagem = string.Empty;
+    private string tipoMensagem = "erro";
+    private ReservaResposta? reservaConfirmada;
+
+    protected override async Task OnInitializedAsync()
+    {
+        carregandoEventos = true;
+        try { eventos = await Http.GetFromJsonAsync<List<Evento>>("/api/eventos") ?? new(); }
+        catch { eventos = new(); }
+        carregandoEventos = false;
+    }
+
+    private void FiltrarCpf(ChangeEventArgs e)
+    {
+        var valor = e.Value?.ToString() ?? string.Empty;
+        req.UsuarioCpf = new string(valor.Where(char.IsDigit).ToArray());
+    }
+
+    private async Task RealizarReserva()
+    {
+        mensagem = string.Empty;
+        reservaConfirmada = null;
+        carregando = true;
+
+        if (req.EventoId == 0)
+        {
+            mensagem = "Selecione um evento para continuar.";
+            tipoMensagem = "erro";
+            carregando = false;
+            return;
+        }
+
+        if (req.UsuarioCpf.Length != 11)
+        {
+            mensagem = "Informe um CPF com 11 dígitos.";
+            tipoMensagem = "erro";
+            carregando = false;
+            return;
+        }
+
+        var payload = new
+        {
+            req.UsuarioCpf,
+            req.EventoId,
+            CupomUtilizado = string.IsNullOrWhiteSpace(req.CupomUtilizado) ? null : req.CupomUtilizado.Trim().ToUpper()
+        };
+
+        var resp = await Http.PostAsJsonAsync("/api/reservas", payload);
+        if (resp.IsSuccessStatusCode)
+        {
+            reservaConfirmada = await resp.Content.ReadFromJsonAsync<ReservaResposta>();
+            req = new();
+        }
+        else
+        {
+            mensagem = await resp.Content.ReadAsStringAsync();
+            tipoMensagem = "erro";
+        }
+
+        carregando = false;
+    }
+
+    private class ReservaResposta
+    {
+        public string Mensagem { get; set; } = string.Empty;
+        public decimal ValorPago { get; set; }
+    }
+}

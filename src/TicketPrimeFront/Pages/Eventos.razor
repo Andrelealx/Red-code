@@ -1,0 +1,165 @@
+@page "/eventos"
+@inject HttpClient Http
+<PageTitle>Eventos — TicketPrime</PageTitle>
+
+<div class="tp-page-header">
+    <h1 class="tp-page-title tp-page-title-icon">
+        <span>📅</span> Eventos
+    </h1>
+    <p class="tp-page-desc">Cadastre eventos com data, capacidade e preço. A data deve ser futura.</p>
+</div>
+
+<div class="tp-two-col">
+
+    <div class="tp-card tp-card-accent">
+        <div class="tp-card-title">
+            <div class="tp-card-title-icon">✏️</div>
+            Cadastrar Evento
+        </div>
+
+        <div class="tp-form">
+            <div class="tp-field">
+                <label class="tp-label">Nome do evento</label>
+                <input class="tp-input" @bind="novoEvento.Nome" placeholder="Ex: Festival de Verão 2025" />
+            </div>
+
+            <div class="tp-field">
+                <label class="tp-label">Data e horário</label>
+                <input class="tp-input" type="datetime-local" @bind="novoEvento.DataEvento" />
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div class="tp-field">
+                    <label class="tp-label">Capacidade</label>
+                    <input class="tp-input" type="number" min="1" @bind="novoEvento.CapacidadeTotal" placeholder="Ex: 500" />
+                </div>
+                <div class="tp-field">
+                    <label class="tp-label">Preço (R$)</label>
+                    <input class="tp-input" type="number" step="0.01" min="0" @bind="novoEvento.PrecoPadrao" placeholder="Ex: 150.00" />
+                </div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(novoEvento.Nome) && novoEvento.PrecoPadrao > 0)
+            {
+                <div class="tp-preview">
+                    <span>🎟</span>
+                    <span>
+                        <strong>@novoEvento.Nome</strong> ·
+                        R$ @novoEvento.PrecoPadrao.ToString("F2") ·
+                        @novoEvento.CapacidadeTotal vagas
+                    </span>
+                </div>
+            }
+
+            <button class="tp-btn tp-btn-primary" @onclick="CadastrarEvento" disabled="@carregandoPost" style="margin-top:4px;">
+                @if (carregandoPost)
+                {
+                    <span class="tp-btn-spinner"></span>
+                    <span>Salvando...</span>
+                }
+                else
+                {
+                    <span>Cadastrar Evento</span>
+                }
+            </button>
+
+            <Alerta Mensagem="@mensagem" Tipo="@tipoMensagem" />
+        </div>
+    </div>
+
+    <div class="tp-card">
+        <div class="tp-card-header">
+            <div class="tp-card-title" style="margin-bottom:0;">
+                <div class="tp-card-title-icon">📋</div>
+                Eventos Disponíveis
+                @if (eventos is not null && eventos.Any())
+                {
+                    <span class="tp-badge tp-badge-count">@eventos.Count</span>
+                }
+            </div>
+            <button class="tp-btn tp-btn-ghost" @onclick="CarregarEventos" disabled="@carregandoGet">
+                @if (carregandoGet) { <span class="tp-btn-spinner" style="border-color:rgba(0,0,0,0.15);border-top-color:var(--gold);"></span> }
+                else { <span>↻ Atualizar</span> }
+            </button>
+        </div>
+
+        @if (carregandoGet)
+        {
+            <div class="tp-loading">
+                <div class="tp-loading-spinner"></div>
+                Carregando eventos...
+            </div>
+        }
+        else if (eventos is null || !eventos.Any())
+        {
+            <div class="tp-empty">
+                <span class="tp-empty-icon">📭</span>
+                Nenhum evento cadastrado ainda.
+                <p>Crie o primeiro evento no formulário ao lado.</p>
+            </div>
+        }
+        else
+        {
+            <div class="tp-list">
+                @foreach (var ev in eventos)
+                {
+                    <div class="tp-list-item">
+                        <div class="tp-list-main">
+                            <span class="tp-list-title">@ev.Nome</span>
+                            <span class="tp-badge">ID @ev.Id</span>
+                        </div>
+                        <div class="tp-list-detail">
+                            📅 @ev.DataEvento.ToString("dd/MM/yyyy HH:mm")
+                            &nbsp;·&nbsp;
+                            👥 @ev.CapacidadeTotal vagas
+                            &nbsp;·&nbsp;
+                            💰 R$ @ev.PrecoPadrao.ToString("F2")
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+</div>
+
+@code {
+    private Evento novoEvento = new() { DataEvento = DateTime.Now.AddDays(7) };
+    private List<Evento>? eventos;
+    private string mensagem = string.Empty;
+    private string tipoMensagem = "erro";
+    private bool carregandoGet = false;
+    private bool carregandoPost = false;
+
+    protected override async Task OnInitializedAsync() => await CarregarEventos();
+
+    private async Task CarregarEventos()
+    {
+        carregandoGet = true;
+        try { eventos = await Http.GetFromJsonAsync<List<Evento>>("/api/eventos"); }
+        catch { eventos = new(); }
+        carregandoGet = false;
+    }
+
+    private async Task CadastrarEvento()
+    {
+        mensagem = string.Empty;
+        carregandoPost = true;
+
+        var resp = await Http.PostAsJsonAsync("/api/eventos", novoEvento);
+        if (resp.IsSuccessStatusCode)
+        {
+            mensagem = $"Evento \"{novoEvento.Nome}\" cadastrado com sucesso!";
+            tipoMensagem = "sucesso";
+            novoEvento = new() { DataEvento = DateTime.Now.AddDays(7) };
+            await CarregarEventos();
+        }
+        else
+        {
+            mensagem = await resp.Content.ReadAsStringAsync();
+            tipoMensagem = "erro";
+        }
+
+        carregandoPost = false;
+    }
+}

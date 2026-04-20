@@ -1,0 +1,144 @@
+@page "/consultar-reservas"
+@inject HttpClient Http
+<PageTitle>Consultar Reservas — TicketPrime</PageTitle>
+
+<div class="tp-page-header">
+    <h1 class="tp-page-title tp-page-title-icon">
+        <span>🔍</span> Consultar Reservas
+    </h1>
+    <p class="tp-page-desc">Visualize todas as reservas de um CPF com nome do evento e valor pago.</p>
+</div>
+
+<div class="tp-card tp-card-accent" style="max-width:540px;">
+    <div class="tp-card-title">
+        <div class="tp-card-title-icon">🔍</div>
+        Buscar por CPF
+    </div>
+
+    <div class="tp-form">
+        <div class="tp-field">
+            <label class="tp-label">CPF do comprador (11 dígitos)</label>
+            <div class="tp-input-row">
+                <input class="tp-input"
+                       value="@cpfBusca"
+                       @oninput="FiltrarCpf"
+                       placeholder="Ex: 12345678901"
+                       maxlength="11"
+                       inputmode="numeric" />
+                <button class="tp-btn tp-btn-primary" @onclick="BuscarReservas" disabled="@carregando">
+                    @if (carregando)
+                    {
+                        <span class="tp-btn-spinner"></span>
+                    }
+                    else
+                    {
+                        <span>Buscar</span>
+                    }
+                </button>
+            </div>
+        </div>
+        <Alerta Mensagem="@mensagem" Tipo="@tipoMensagem" />
+    </div>
+</div>
+
+@if (reservas is not null)
+{
+    <div class="tp-card" style="margin-top: 20px; animation: fadeInUp 0.4s ease;">
+        <div class="tp-card-header">
+            <div class="tp-card-title" style="margin-bottom:0;">
+                <div class="tp-card-title-icon">📋</div>
+                Reservas do CPF
+                <span class="tp-code" style="font-size:12px;">@cpfConsultado</span>
+            </div>
+            <span class="tp-badge @(reservas.Count > 0 ? "tp-badge-count" : "")">
+                @reservas.Count ingresso(s)
+            </span>
+        </div>
+
+        @if (reservas.Count == 0)
+        {
+            <div class="tp-empty">
+                <span class="tp-empty-icon">🎫</span>
+                Nenhuma reserva encontrada para este CPF.
+                <p>Realize uma reserva na seção <a href="reservas" style="color:var(--gold-dark); font-weight:700;">Reservas</a>.</p>
+            </div>
+        }
+        else
+        {
+            <div class="tp-list">
+                @foreach (var r in reservas)
+                {
+                    <div class="tp-list-item">
+                        <div class="tp-list-main">
+                            <span class="tp-list-title">@r.NomeEvento</span>
+                            <span class="tp-badge">Reserva #@r.Id</span>
+                            @if (!string.IsNullOrEmpty(r.CupomUtilizado))
+                            {
+                                <span class="tp-badge tp-badge-success">🏷 @r.CupomUtilizado</span>
+                            }
+                        </div>
+                        <div class="tp-list-detail">
+                            💰 Pago: <strong style="color:var(--gold-dark);">R$ @r.ValorFinalPago.ToString("F2")</strong>
+                            &nbsp;·&nbsp;
+                            📅 @r.DataReserva.ToString("dd/MM/yyyy") às @r.DataReserva.ToString("HH:mm")
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="tp-divider"></div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; padding: 4px 2px;">
+                <span class="tp-price-label">Total gasto</span>
+                <span class="tp-price">R$ @reservas.Sum(r => r.ValorFinalPago).ToString("F2")</span>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private string cpfBusca = string.Empty;
+    private string cpfConsultado = string.Empty;
+    private List<ReservaConsulta>? reservas;
+    private string mensagem = string.Empty;
+    private string tipoMensagem = "erro";
+    private bool carregando = false;
+
+    private void FiltrarCpf(ChangeEventArgs e)
+    {
+        var valor = e.Value?.ToString() ?? string.Empty;
+        cpfBusca = new string(valor.Where(char.IsDigit).ToArray());
+    }
+
+    private async Task BuscarReservas()
+    {
+        mensagem = string.Empty;
+        reservas = null;
+
+        if (cpfBusca.Length != 11)
+        {
+            mensagem = "Informe um CPF com exatamente 11 dígitos.";
+            tipoMensagem = "erro";
+            return;
+        }
+
+        carregando = true;
+        var resp = await Http.GetAsync($"/api/reservas/{cpfBusca}");
+        if (resp.IsSuccessStatusCode)
+        {
+            reservas = await resp.Content.ReadFromJsonAsync<List<ReservaConsulta>>() ?? new();
+            cpfConsultado = cpfBusca;
+            if (reservas.Count == 0)
+            {
+                mensagem = "Nenhuma reserva encontrada para este CPF.";
+                tipoMensagem = "erro";
+            }
+        }
+        else
+        {
+            mensagem = "Erro ao consultar. Verifique o CPF e tente novamente.";
+            tipoMensagem = "erro";
+        }
+        carregando = false;
+    }
+}

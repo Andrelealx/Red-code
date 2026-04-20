@@ -1,0 +1,150 @@
+@page "/usuarios"
+@inject HttpClient Http
+<PageTitle>Usuários — TicketPrime</PageTitle>
+
+<div class="tp-page-header">
+    <h1 class="tp-page-title tp-page-title-icon">
+        <span>👤</span> Usuários
+    </h1>
+    <p class="tp-page-desc">Cadastre compradores com CPF único para liberar acesso às reservas.</p>
+</div>
+
+<div class="tp-two-col">
+
+    <div class="tp-card tp-card-accent">
+        <div class="tp-card-title">
+            <div class="tp-card-title-icon">✏️</div>
+            Cadastrar Usuário
+        </div>
+
+        <div class="tp-form">
+            <div class="tp-field">
+                <label class="tp-label">CPF — somente números, 11 dígitos</label>
+                <input class="tp-input"
+                       value="@novoUsuario.Cpf"
+                       @oninput="FiltrarCpf"
+                       placeholder="Ex: 12345678901"
+                       maxlength="11"
+                       inputmode="numeric" />
+                @if (!string.IsNullOrEmpty(novoUsuario.Cpf))
+                {
+                    <small style="font-size:11px; color: @(novoUsuario.Cpf.Length == 11 ? "var(--success)" : "var(--text-muted)")">
+                        @novoUsuario.Cpf.Length / 11 dígitos
+                    </small>
+                }
+            </div>
+
+            <div class="tp-field">
+                <label class="tp-label">Nome completo</label>
+                <input class="tp-input" @bind="novoUsuario.Nome" placeholder="Ex: João da Silva" />
+            </div>
+
+            <div class="tp-field">
+                <label class="tp-label">E-mail</label>
+                <input class="tp-input" type="email" @bind="novoUsuario.Email" placeholder="Ex: joao@email.com" />
+            </div>
+
+            <button class="tp-btn tp-btn-primary" @onclick="CadastrarUsuario" disabled="@carregando" style="margin-top:4px;">
+                @if (carregando)
+                {
+                    <span class="tp-btn-spinner"></span>
+                    <span>Salvando...</span>
+                }
+                else
+                {
+                    <span>Cadastrar Usuário</span>
+                }
+            </button>
+
+            <Alerta Mensagem="@mensagem" Tipo="@tipoMensagem" />
+
+            @if (ultimoCadastrado is not null)
+            {
+                <div class="tp-result tp-result-success">
+                    <div class="tp-result-header">
+                        <span class="tp-success-icon">✅</span> Cadastro realizado com sucesso
+                    </div>
+                    <div class="tp-result-row">
+                        <span>CPF</span>
+                        <strong class="tp-code">@ultimoCadastrado.Cpf</strong>
+                    </div>
+                    <div class="tp-result-row">
+                        <span>Nome</span>
+                        <strong>@ultimoCadastrado.Nome</strong>
+                    </div>
+                    <div class="tp-result-row">
+                        <span>E-mail</span>
+                        <strong>@ultimoCadastrado.Email</strong>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="tp-card">
+        <div class="tp-card-title">
+            <div class="tp-card-title-icon">📋</div>
+            Regras de Cadastro
+        </div>
+        <ul class="tp-info-list">
+            <li>
+                <span>✅</span>
+                <span>CPF com <strong>exatamente 11 dígitos numéricos</strong> — letras e símbolos são bloqueados automaticamente.</span>
+            </li>
+            <li>
+                <span>✅</span>
+                <span>CPF único — cadastros duplicados retornam <code>HTTP 400</code>.</span>
+            </li>
+            <li>
+                <span>✅</span>
+                <span>E-mail com formato válido (contém <code>@@</code> e domínio).</span>
+            </li>
+            <li>
+                <span>✅</span>
+                <span>E-mail único — dois usuários não podem compartilhar o mesmo endereço.</span>
+            </li>
+        </ul>
+
+        <div class="tp-tip">
+            <span>💡</span>
+            <span>Anote o CPF após o cadastro — ele será necessário para realizar reservas de ingressos.</span>
+        </div>
+    </div>
+
+</div>
+
+@code {
+    private Usuario novoUsuario = new();
+    private Usuario? ultimoCadastrado;
+    private string mensagem = string.Empty;
+    private string tipoMensagem = "erro";
+    private bool carregando = false;
+
+    private void FiltrarCpf(ChangeEventArgs e)
+    {
+        var valor = e.Value?.ToString() ?? string.Empty;
+        novoUsuario.Cpf = new string(valor.Where(char.IsDigit).ToArray());
+    }
+
+    private async Task CadastrarUsuario()
+    {
+        mensagem = string.Empty;
+        ultimoCadastrado = null;
+        carregando = true;
+
+        var resp = await Http.PostAsJsonAsync("/api/usuarios", novoUsuario);
+        if (resp.IsSuccessStatusCode)
+        {
+            ultimoCadastrado = new Usuario { Cpf = novoUsuario.Cpf, Nome = novoUsuario.Nome, Email = novoUsuario.Email };
+            mensagem = string.Empty;
+            novoUsuario = new();
+        }
+        else
+        {
+            mensagem = await resp.Content.ReadAsStringAsync();
+            tipoMensagem = "erro";
+        }
+
+        carregando = false;
+    }
+}
