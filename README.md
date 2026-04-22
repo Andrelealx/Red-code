@@ -40,7 +40,9 @@ O script cria o banco `TicketPrime` com as tabelas:
 
 ```powershell
 # Terminal 1 — entre na pasta da API
-cd src\TicketPrimeApi
+cd Ticketprime-master
+cd src
+cd TicketPrimeApi
 
 # Execute a aplicação
 dotnet run
@@ -67,7 +69,9 @@ A API estará disponível em: `http://localhost:5246`
 
 ```powershell
 # Terminal 2 — entre na pasta do front
-cd src\TicketPrimeFront
+cd TicketPrime-master
+cd src
+cd TicketPrimefront
 
 # Execute a aplicação
 dotnet run
