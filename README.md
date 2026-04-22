@@ -40,6 +40,27 @@ Se voce ja tiver banco pronto e quiser subir so API + Front:
 npm run dev:apps
 ```
 
+## Windows Totalmente Limpo (Quase Sem Nada Instalado)
+
+Se a pessoa estiver em Windows e quiser setup guiado (instala dependencias via `winget`), rode:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\setup-local.ps1 -AutoInstall
+```
+
+Esse script:
+
+- Instala (se faltar): Git, Node.js, .NET SDK 10+ e Docker Desktop
+- Inicia o Docker Desktop
+- Executa `npm install`
+- Sobe tudo com `npm run dev`
+
+Se quiser so preparar a maquina sem subir app:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\setup-local.ps1 -AutoInstall -SkipRun
+```
+
 ## Setup de Maquina Zero (Passo a Passo)
 
 ### 1. Clonar e atualizar
@@ -132,6 +153,7 @@ npm run dev       # sobe tudo (db + restore + api + front)
 npm run dev:apps  # sobe somente api + front
 npm run restore   # restore dos 3 projetos .NET
 npm run test      # roda testes
+npm run setup:win # setup guiado para Windows
 ```
 
 ## Endpoints da API
