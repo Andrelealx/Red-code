@@ -87,6 +87,7 @@ O front-end abrirá automaticamente no navegador. Caso não abra, acesse: `http:
 
 ```powershell
 # Entre na pasta de testes
+cd TicketPrime-master
 cd tests
 
 # Execute os testes
